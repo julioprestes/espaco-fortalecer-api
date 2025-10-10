@@ -1,0 +1,328 @@
+import Users from "../models/UsersModel.js";
+import bcrypt from 'bcrypt'
+import jwt from 'jsonwebtoken'
+import sendMail from "../utils/email.js";
+import { Op } from "sequelize";
+
+const get = async (req, res) => {
+    try {
+        const id = req.params.id ? req.params.id.toString().replace(/\D/g, '') : null;
+
+        if (!id) {
+            const response = await Users.findAll({
+                order: [['id', 'desc']],
+            });
+
+            return res.status(200).send({
+                message: 'Dados Encontrados',
+                data: response,
+            });
+        }
+
+        
+        const response = await Users.findOne({
+            where: {
+                id: id
+            }
+        });
+
+        if (!response) {
+            return res.status(404).send('Não Achou')
+        };
+
+        return res.status(200).send({
+            message: 'Dados Encontrados',
+            data: response,
+        });
+
+    } catch (error) {
+        return res.status(500).send({
+            message: error.message
+        });
+    }
+}
+
+const create = async (req, res) => {
+    try {
+        const {
+            nome,
+            email,
+            password,
+            token,
+            cargo,
+        } = req.body
+
+        console.log(req.body); 
+        const verificaEmail = await Users.findOne({
+            where: {
+                email
+            }
+        })
+
+        if (verificaEmail) {
+            return res.status(400).send({
+                message: 'Já existe usuario com este email'
+            });
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
+        console.log(passwordHash);
+        
+
+        const response = await Users.create({
+            nome,
+            email,
+            passwordHash,
+            token,
+            cargo,
+        });
+
+        return res.status(201).send({
+            message: 'Criado com sucesso!',
+            data: response
+        });
+    } catch (error) {
+        throw new Error(error.message)
+    }
+}
+
+const login = async (req, res) => {
+    try {
+        const {
+            email,
+            password,
+        } = req.body;
+
+        const user = await Users.findOne({
+            where: {
+                email,
+            }
+        });
+
+        if (!user){
+            return res.status(400).send ({
+                message: 'Users ou senha incorretos'
+            });
+        }
+
+        const comparacaoSenha = await bcrypt.compare(password, user.passwordHash)
+
+        if(comparacaoSenha) {
+            const token = jwt.sign({ idUsers: user.id, nome: user.nome, email: user.email, idCargo: user.idCargo }, process.env.TOKEN_KEY, { expiresIn: '8h'});
+            return res.status(200).send({
+                message: 'Sucesso no Login',
+                response: token,
+                user: {
+                    id: user.id,
+                    nome: user.nome,
+                    email: user.email
+                }
+            })
+        } else {
+            return res.status(400).send ({
+                message: 'Users ou senha incorretos'
+            });
+        }
+
+    } catch (error) {
+        return res.status(500).send({
+            message: error.message
+        });
+    }
+};
+
+const recuperarSenha = async (req, res) => {
+    try {
+        const { 
+            email
+        } = req.body;
+    
+        const user = await Users.findOne({
+            where: {
+                email,
+            }
+        });
+        if (!user){
+            return res.status(400).send ({
+                message: 'Users ou senha incorretos'
+            });
+        };
+
+        const gerarCodigo = () => Math.random().toString(36).slice(2);
+        const codigo = gerarCodigo();
+        const expiracao = new Date(Date.now() + 30 * 60 * 1000);
+    
+        user.codigoSenha = codigo;
+        user.codigoSenhaExpiracao = expiracao;
+
+        await user.save();
+
+        console.log("enviando email");
+
+        await sendMail(user.email, user.nome, codigo, 'Recuperar senha');
+
+        return res.status(200).send({
+            message: 'codigo enviado',
+        })
+    
+    } catch (error) {
+        return res.status(500).send({
+            message: error.message
+        });
+    }
+};
+
+const redefinirSenha = async (req, res) => {
+    try {
+        const { codigo, novaSenha } = req.body;
+
+        const user = await Users.findOne({
+            where: {
+                codigoSenha: codigo,
+                codigoSenhaExpiracao: {
+                    [Op.gt]: new Date(),
+                },
+            },
+        });
+
+        if (!user) {
+            return res.status(400).send({
+                message: 'Código inválido ou expirado.',
+            });
+        }
+
+        const novaSenhaHash = await bcrypt.hash(novaSenha, 10);
+
+        user.passwordHash = novaSenhaHash; 
+        user.codigoSenha = null; 
+        user.codigoSenhaExpiracao = null; 
+
+        await user.save();
+
+        return res.status(200).send({
+            message: 'Senha redefinida com sucesso.',
+        });
+    } catch (error) {
+        return res.status(500).send({
+            message: error.message,
+        });
+    }
+};
+
+const getDataByToken = async (req, res) => {
+    try {
+        const token = req.headers.authorization.split(' ')[1];
+        
+        if(!token) {
+            throw new Error('Não achou token');
+        }
+
+        const user = jwt.verify(token, process.env.TOKEN_KEY);
+
+        if(!user) {
+            throw new Error('Token inválido');
+        }
+
+        const usuario = await Users.findOne({
+            where: { id: user.idUsers },
+            attributes: ['id', 'nome', 'email', 'cargo']
+        });
+        
+        if (!usuario) {
+            return res.status(404).send({
+                message: 'Usuário não encontrado'
+            });
+        };
+
+        return res.status(200).send({
+            response: user,
+            data: usuario
+        });
+    } catch (error) {
+        return res.status(500).send({
+            message: error.message
+        });
+    }
+};
+
+const update = async (corpo, id) => {
+    try {
+        const response = await Users.findOne({
+            where: {
+                id
+            }
+        });
+
+        if (!response) {
+            throw new Error('Não achou');
+        }
+
+        Object.keys(corpo).forEach((item) => response[item] = corpo[item]);
+        await response.save();
+
+        return response;
+    } catch (error) {
+        throw new Error(error.message)
+    }
+};
+
+const persist = async (req, res) => {
+    try {
+        const id = req.params.id ? req.params.id.toString().replace(/\D/g, '') : null;
+
+        if (!id) {
+            return await create(req, res);
+        }
+
+        const response = await update(req.body, id);
+        return res.status(200).send({
+            message: 'Atualizado com sucesso!',
+            data: response
+        });
+    } catch (error) {
+        return res.status(500).send({
+            message: error.message
+        });
+    }
+};
+
+const destroy = async (req, res) => {
+    try {
+        const id = req.params.id ? req.params.id.toString().replace(/\D/g, '') : null;
+        if (!id) {
+            res.status(400).send('informa ai paezon')
+        }
+
+        const response = await Users.findOne({
+            where: {
+                id
+            }
+        });
+
+        if (!response) {
+            return res.status(404).send('nao achou')
+        }
+
+        await response.destroy();
+
+        return res.status(200).send({
+            message: 'registro excluido',
+            data: response
+        })
+
+    } catch (error) {
+        return res.status(500).send({
+            message: error.message
+        });
+    }
+};
+
+export default {
+    get,
+    persist,
+    destroy,
+    login,
+    getDataByToken,
+    recuperarSenha,
+    redefinirSenha
+}
