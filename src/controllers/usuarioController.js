@@ -1,4 +1,4 @@
-import Users from "../models/UsersModel.js";
+import Usuario from "../models/UsuarioModel.js";
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import sendMail from "../utils/email.js";
@@ -9,7 +9,7 @@ const get = async (req, res) => {
         const id = req.params.id ? req.params.id.toString().replace(/\D/g, '') : null;
 
         if (!id) {
-            const response = await Users.findAll({
+            const response = await Usuario.findAll({
                 order: [['id', 'desc']],
             });
 
@@ -20,7 +20,7 @@ const get = async (req, res) => {
         }
 
         
-        const response = await Users.findOne({
+        const response = await Usuario.findOne({
             where: {
                 id: id
             }
@@ -53,15 +53,16 @@ const create = async (req, res) => {
         } = req.body
 
         console.log(req.body); 
-        const verificaEmail = await Users.findOne({
+        const verificaEmail = await Usuario.findOne({
             where: {
                 email
             }
         })
 
         if (verificaEmail) {
-            return res.status(400).send({
-                message: 'Já existe usuario com este email'
+            console.log(`Tentativa de criar usuário com email já existente: ${email}`);
+            return res.status(409).send({
+                message: 'Já existe usuário com este email'
             });
         }
 
@@ -69,7 +70,7 @@ const create = async (req, res) => {
         console.log(passwordHash);
         
 
-        const response = await Users.create({
+        const response = await Usuario.create({
             nome,
             email,
             passwordHash,
@@ -82,7 +83,10 @@ const create = async (req, res) => {
             data: response
         });
     } catch (error) {
-        throw new Error(error.message)
+        console.error('Erro ao criar usuário:', error);
+        return res.status(500).send({
+            message: error.message
+        });
     }
 }
 
@@ -93,7 +97,7 @@ const login = async (req, res) => {
             password,
         } = req.body;
 
-        const user = await Users.findOne({
+        const user = await Usuario.findOne({
             where: {
                 email,
             }
@@ -137,7 +141,7 @@ const recuperarSenha = async (req, res) => {
             email
         } = req.body;
     
-        const user = await Users.findOne({
+        const user = await Usuario.findOne({
             where: {
                 email,
             }
@@ -176,7 +180,7 @@ const redefinirSenha = async (req, res) => {
     try {
         const { codigo, novaSenha } = req.body;
 
-        const user = await Users.findOne({
+        const user = await Usuario.findOne({
             where: {
                 codigoSenha: codigo,
                 codigoSenhaExpiracao: {
@@ -223,7 +227,7 @@ const getDataByToken = async (req, res) => {
             throw new Error('Token inválido');
         }
 
-        const usuario = await Users.findOne({
+        const usuario = await Usuario.findOne({
             where: { id: user.idUsers },
             attributes: ['id', 'nome', 'email', 'cargo']
         });
@@ -247,7 +251,7 @@ const getDataByToken = async (req, res) => {
 
 const update = async (corpo, id) => {
     try {
-        const response = await Users.findOne({
+        const response = await Usuario.findOne({
             where: {
                 id
             }
@@ -293,7 +297,7 @@ const destroy = async (req, res) => {
             res.status(400).send('informa ai paezon')
         }
 
-        const response = await Users.findOne({
+        const response = await Usuario.findOne({
             where: {
                 id
             }
