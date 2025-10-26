@@ -3,7 +3,6 @@ import criancaRoute from "./criancaRoute.js";
 import configuracaoRoute from "./configuracaoRoute.js";
 import pictogramaRoute from "./pictogramaRoute.js";
 import progressoRoute from "./progressoRoute.js";
-import usuarioRoute from "./usuarioRoute.js";
 
 function Routes(app) {
     // Rota de teste/health check
@@ -20,7 +19,6 @@ function Routes(app) {
     configuracaoRoute(app);
     pictogramaRoute(app);
     progressoRoute(app);
-    usuarioRoute(app);
 }
 
 export default Routes;
