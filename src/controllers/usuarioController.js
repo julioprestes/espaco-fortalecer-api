@@ -1,4 +1,4 @@
-import Users from "../models/UsersModel.js";
+import Usuario from "../models/UsuarioModel.js";
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import sendMail from "../utils/email.js";
@@ -9,7 +9,7 @@ const get = async (req, res) => {
         const id = req.params.id ? req.params.id.toString().replace(/\D/g, '') : null;
 
         if (!id) {
-            const response = await Users.findAll({
+            const response = await Usuario.findAll({
                 order: [['id', 'desc']],
             });
 
@@ -20,7 +20,7 @@ const get = async (req, res) => {
         }
 
         
-        const response = await Users.findOne({
+        const response = await Usuario.findOne({
             where: {
                 id: id
             }
@@ -53,7 +53,7 @@ const create = async (req, res) => {
         } = req.body
 
         console.log(req.body); 
-        const verificaEmail = await Users.findOne({
+        const verificaEmail = await Usuario.findOne({
             where: {
                 email
             }
@@ -69,7 +69,7 @@ const create = async (req, res) => {
         console.log(passwordHash);
         
 
-        const response = await Users.create({
+        const response = await Usuario.create({
             nome,
             email,
             passwordHash,
@@ -93,7 +93,7 @@ const login = async (req, res) => {
             password,
         } = req.body;
 
-        const user = await Users.findOne({
+        const user = await Usuario.findOne({
             where: {
                 email,
             }
@@ -101,14 +101,14 @@ const login = async (req, res) => {
 
         if (!user){
             return res.status(400).send ({
-                message: 'Users ou senha incorretos'
+                message: 'Usuario ou senha incorretos'
             });
         }
 
         const comparacaoSenha = await bcrypt.compare(password, user.passwordHash)
 
         if(comparacaoSenha) {
-            const token = jwt.sign({ idUsers: user.id, nome: user.nome, email: user.email, idCargo: user.idCargo }, process.env.TOKEN_KEY, { expiresIn: '8h'});
+            const token = jwt.sign({ idUsuario: user.id, nome: user.nome, email: user.email, idCargo: user.idCargo }, process.env.TOKEN_KEY, { expiresIn: '8h'});
             return res.status(200).send({
                 message: 'Sucesso no Login',
                 response: token,
@@ -120,7 +120,7 @@ const login = async (req, res) => {
             })
         } else {
             return res.status(400).send ({
-                message: 'Users ou senha incorretos'
+                message: 'Usuario ou senha incorretos'
             });
         }
 
@@ -137,14 +137,14 @@ const recuperarSenha = async (req, res) => {
             email
         } = req.body;
     
-        const user = await Users.findOne({
+        const user = await Usuario.findOne({
             where: {
                 email,
             }
         });
         if (!user){
             return res.status(400).send ({
-                message: 'Users ou senha incorretos'
+                message: 'Usuario ou senha incorretos'
             });
         };
 
@@ -176,7 +176,7 @@ const redefinirSenha = async (req, res) => {
     try {
         const { codigo, novaSenha } = req.body;
 
-        const user = await Users.findOne({
+        const user = await Usuario.findOne({
             where: {
                 codigoSenha: codigo,
                 codigoSenhaExpiracao: {
@@ -223,8 +223,8 @@ const getDataByToken = async (req, res) => {
             throw new Error('Token inválido');
         }
 
-        const usuario = await Users.findOne({
-            where: { id: user.idUsers },
+        const usuario = await Usuario.findOne({
+            where: { id: user.idUsuario },
             attributes: ['id', 'nome', 'email', 'cargo']
         });
         
@@ -247,7 +247,7 @@ const getDataByToken = async (req, res) => {
 
 const update = async (corpo, id) => {
     try {
-        const response = await Users.findOne({
+        const response = await Usuario.findOne({
             where: {
                 id
             }
@@ -293,7 +293,7 @@ const destroy = async (req, res) => {
             res.status(400).send('informa ai paezon')
         }
 
-        const response = await Users.findOne({
+        const response = await Usuario.findOne({
             where: {
                 id
             }
