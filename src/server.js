@@ -45,9 +45,10 @@ sequelize.authenticate()
         console.log('Api rodando');
     });
 
-app.listen(process.env.API_PORT, (e) => {
+app.listen(process.env.API_PORT, '0.0.0.0', (e) => {
     if (e) {
         return console.log(e);
     }
     console.log(`Rodando na url http://localhost:${process.env.API_PORT}`);
+    console.log(`Acessível via emulador Android em http://10.0.2.2:${process.env.API_PORT}`);
 })
