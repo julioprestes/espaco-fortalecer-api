@@ -2,6 +2,7 @@ import configuracaoController from "../controllers/configuracaoController.js";
 
 export default (app) => {
     app.get('/configuracao', configuracaoController.get);
+    app.get('/configuracao/crianca/:idCrianca', configuracaoController.getConfigByCrianca);
     app.get('/configuracao/:id', configuracaoController.get);
     app.post('/configuracao', configuracaoController.persist);
     app.patch('/configuracao/:id', configuracaoController.persist);

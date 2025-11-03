@@ -149,9 +149,55 @@ const destroy = async (req, res) => {
     }
 }
 
+const getConfigByCrianca = async (req, res) => {
+    try {
+        const idCrianca = req.params.idCrianca ? req.params.idCrianca.toString().replace(/\D/g, '') : null;
+        
+        if (!idCrianca) {
+            return res.status(400).send('Informe o ID da criança');
+        }
+
+        const response = await Configuracao.findOne({
+            where: {
+                idCrianca: idCrianca
+            },
+            include: [
+                {
+                    model: Crianca,
+                    as: 'crianca',
+                    attributes: ['id', 'nome']
+                }
+            ]
+        });
+
+        // Se não encontrar, retorna configuração padrão
+        if (!response) {
+            return res.status(200).send({
+                message: 'Configuração padrão',
+                data: {
+                    tamanho_fonte: 'medio',
+                    alto_contraste: false,
+                    idCrianca: idCrianca
+                }
+            });
+        }
+
+        return res.status(200).send({
+            message: 'Dados Encontrados',
+            data: response,
+        });
+
+    } catch (error) {
+        return res.status(500).send({
+            message: error.message
+        });
+    }
+}
+
 
 export default {
     get,
     persist,
-    destroy
+    destroy,
+    getConfigByCrianca
 }

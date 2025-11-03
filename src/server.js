@@ -42,7 +42,7 @@ app.use((req, res) => {
 
 sequelize.authenticate()
     .then(() => {
-        console.log('deu boa no banco');
+        console.log('Api rodando');
     });
 
 app.listen(process.env.API_PORT, (e) => {

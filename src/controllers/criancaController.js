@@ -1,12 +1,23 @@
 import Crianca from "../models/CriancaModel.js";
 import Usuario from "../models/UsuarioModel.js";
+import jwt from 'jsonwebtoken';
 
 const get = async (req, res) => {
     try {
         const id = req.params.id ? req.params.id.toString().replace(/\D/g, '') : null;
 
+        // Pega o ID do usuário do token
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).send({ message: 'Token não fornecido' });
+        }
+        const decoded = jwt.verify(token, process.env.TOKEN_KEY);
+        const idUsuario = decoded.idUsuario;
+
         if (!id) {
+            // Lista apenas as crianças do usuário logado
             const response = await Crianca.findAll({
+                where: { idUsuario },
                 order: [['id', 'desc']],
                 include: [
                     {
@@ -26,7 +37,8 @@ const get = async (req, res) => {
         
         const response = await Crianca.findOne({
             where: {
-                id: id
+                id: id,
+                idUsuario // Garante que só pode ver suas próprias crianças
             },
             include: [
                 {
@@ -98,6 +110,17 @@ const persist = async (req, res) => {
     try {
         const id = req.params.id ? req.params.id.toString().replace(/\D/g, '') : null;
 
+        // Pega o ID do usuário do token
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).send({ message: 'Token não fornecido' });
+        }
+        const decoded = jwt.verify(token, process.env.TOKEN_KEY);
+        const idUsuario = decoded.idUsuario;
+
+        // Adiciona o idUsuario ao corpo da requisição
+        req.body.idUsuario = idUsuario;
+
         if (!id) {
             const response = await create(req.body)
             return res.status(201).send({
@@ -125,9 +148,18 @@ const destroy = async (req, res) => {
             res.status(400).send('Informe o ID da Criança')
         }
 
+        // Pega o ID do usuário do token
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).send({ message: 'Token não fornecido' });
+        }
+        const decoded = jwt.verify(token, process.env.TOKEN_KEY);
+        const idUsuario = decoded.idUsuario;
+
         const response = await Crianca.findOne({
             where: {
-                id
+                id,
+                idUsuario // Garante que só pode deletar suas próprias crianças
             }
         });
 

@@ -1,6 +1,7 @@
 import Progresso from "../models/ProgressoModel.js";
 import Crianca from "../models/CriancaModel.js";
 import Atividade from "../models/AtividadeModel.js";
+import { sequelize } from "../config/postgres.js";
 
 const get = async (req, res) => {
     try {
@@ -164,9 +165,54 @@ const destroy = async (req, res) => {
     }
 }
 
+const getProgressoPorCrianca = async (req, res) => {
+    try {
+        const idCrianca = req.params.idCrianca ? req.params.idCrianca.toString().replace(/\D/g, '') : null;
+        
+        if (!idCrianca) {
+            return res.status(400).send('Informe o ID da criança');
+        }
+
+        // Busca os progressos agrupados por atividade
+        const progressos = await Progresso.findAll({
+            where: {
+                idCrianca: idCrianca
+            },
+            attributes: [
+                'idAtividade',
+                [sequelize.fn('COUNT', sequelize.col('progressos.id')), 'total_tentativas'],
+                [sequelize.fn('SUM', sequelize.literal('CASE WHEN foi_correto = true THEN 1 ELSE 0 END')), 'acertos'],
+                [sequelize.fn('SUM', sequelize.literal('CASE WHEN foi_correto = false THEN 1 ELSE 0 END')), 'erros'],
+                [sequelize.fn('MAX', sequelize.col('progressos.updated_at')), 'ultima_tentativa']
+            ],
+            include: [
+                {
+                    model: Atividade,
+                    as: 'atividade',
+                    attributes: ['id', 'titulo', 'fase', 'imagem_path']
+                }
+            ],
+            group: ['idAtividade', 'atividade.id'],
+            order: [[sequelize.fn('MAX', sequelize.col('progressos.updated_at')), 'DESC']]
+        });
+
+        return res.status(200).send({
+            message: 'Dados encontrados',
+            data: progressos
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar progresso da criança:', error);
+        return res.status(500).send({
+            message: error.message
+        });
+    }
+}
+
 
 export default {
     get,
     persist,
-    destroy
+    destroy,
+    getProgressoPorCrianca
 }
